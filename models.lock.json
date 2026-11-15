@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "models": {
+    "piper-es_MX-claude-high.onnx": {
+      "kind": "file",
+      "path": "piper/es_MX-claude-high.onnx",
+      "sha256": "3ef40a71ea63852cd8ab7e6fa7d2ecdcfa67a0b47c9c48e3f10e02ee02083ea0",
+      "license": "Apache-2.0 (voz); repositorio rhasspy/piper-voices MIT",
+      "source": "https://huggingface.co/rhasspy/piper-voices (es/es_MX/claude/high)"
+    },
+    "piper-es_MX-claude-high.onnx.json": {
+      "kind": "file",
+      "path": "piper/es_MX-claude-high.onnx.json",
+      "sha256": "1afc81f703c0e4cb3b4d7c0dca096b8b54a98806807f0170cf5eb5557723c12d",
+      "license": "Apache-2.0",
+      "source": "https://huggingface.co/rhasspy/piper-voices (es/es_MX/claude/high)"
+    },
+    "silero-vad": {
+      "kind": "file",
+      "path": "silero_vad.onnx",
+      "sha256": "1a153a22f4509e292a94e67d6f9b85e8deb25b4988682b7e174c65279d8788e3",
+      "license": "MIT",
+      "source": "https://github.com/snakers4/silero-vad (etiqueta v6.2.3; mismo hash que el paquete silero-vad 6.2.3 de PyPI)"
+    },
+    "vosk-small-es": {
+      "kind": "tree",
+      "path": "vosk-model-small-es-0.42",
+      "sha256": "b38430bba9d07f67b32c10be7f62aacf2dcc0dd5a159376905e13de8c3db0597",
+      "license": "Apache-2.0",
+      "source": "https://alphacephei.com/vosk/models (vosk-model-small-es-0.42, 39 MB; oficial de Alpha Cephei, no está en Hugging Face)"
+    }
+  }
+}

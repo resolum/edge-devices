@@ -1,0 +1,11 @@
+# Copia como Modelfile, ajusta la ruta del GGUF y crea el modelo:  ollama create alivia-qwen -f Modelfile
+FROM ./alivia-q4_k_m.gguf
+
+# IMPORTANTE: copia aquí el TEMPLATE y los stop del modelo base (el GGUF convertido no siempre trae la plantilla de chat
+# que Ollama espera). Sácalos con:   ollama show qwen2.5:3b --modelfile
+# TEMPLATE """..."""
+# PARAMETER stop "<|im_start|>"
+# PARAMETER stop "<|im_end|>"
+
+PARAMETER temperature 0
+PARAMETER num_ctx 4096

@@ -1,0 +1,6 @@
+# Solo para ajustar el modelo (NO hace falta para ejecutar el edge). Instala dentro de un entorno aparte.
+torch
+transformers>=4.46
+peft>=0.13
+accelerate>=1.0
+bitsandbytes>=0.44

@@ -1,0 +1,45 @@
+@startuml
+package access.domain {
+  class MacAddress
+  class NodeRef { deviceId; mac; deviceType; status; roomKey; function }
+  class EdgeAccessTable { installationId; householdId; version; nodes; etag(); findByMac(); supersedes() }
+  class AccessPolicy { authorizeMicrophone(); authorizeActuator() }
+  EdgeAccessTable o-- NodeRef
+  NodeRef --> MacAddress
+}
+package access.application {
+  class AccessService { apply(); clear(); authorizeMicrophone(); authorizeActuator() }
+  class AccessSyncService { run(); syncOnce() }
+}
+package access.infrastructure {
+  class HttpBackendGateway
+  class SqliteAccessTableRepository
+}
+package voice {
+  class MicrophoneAccessGate
+  class EdgeServer
+  class DeviceSession
+  class Dialog
+}
+package commands {
+  class AccessAntiCorruptionLayer
+  class CatalogService
+  class CommandDispatcher
+  class OllamaLlm
+  class MqttBus
+}
+AccessSyncService --> HttpBackendGateway
+AccessSyncService --> AccessService
+AccessService --> AccessPolicy
+AccessService --> SqliteAccessTableRepository
+MicrophoneAccessGate --> AccessService
+EdgeServer --> MicrophoneAccessGate
+EdgeServer --> DeviceSession
+DeviceSession --> Dialog
+Dialog --> OllamaLlm
+Dialog --> CommandDispatcher
+CommandDispatcher --> AccessAntiCorruptionLayer
+AccessAntiCorruptionLayer --> AccessService
+CatalogService --> AccessAntiCorruptionLayer
+CommandDispatcher --> MqttBus
+@enduml

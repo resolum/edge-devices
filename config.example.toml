@@ -1,0 +1,83 @@
+# Copia este archivo a config.toml y ajusta lo marcado con  <-- CAMBIAR.
+# Solo hace falta escribir lo que cambies: todo lo demás tiene valores por defecto (ver src/alivia_edge/shared/config.py).
+
+[server]
+host = "0.0.0.0"
+port = 8765
+path = "/ws"
+# Secreto de emparejamiento local: mismo valor que EDGE_TOKEN del sketch. Segunda barrera además de la MAC
+# (la MAC no es un secreto). Mejor déjalo vacío y usa la variable de entorno ALIVIA_WS_TOKEN.
+token = ""                      # <-- CAMBIAR (o variable de entorno)
+
+# Backend (alivia-web-services). De ahí llega la tabla de acceso: qué ESP32 y actuadores existen en el hogar y
+# cuáles están activos. Un dispositivo que no esté en la tabla (o no esté IN_USE) NO puede enviar datos ni recibir comandos.
+# Ya no hay lista de nodos ni catálogo local: todo sale de la tabla.
+[backend]
+base_url = "http://127.0.0.1:8080"   # <-- CAMBIAR
+# Credencial del edge de micrófono, formato <edgeId>.<secreto> (la emite el administrador:
+# POST /api/v1/edges/{id}/credential). Déjala vacía y usa la variable de entorno ALIVIA_EDGE_CREDENTIAL.
+credential = ""
+wait_s = 25                     # espera larga: el backend avisa en cuanto cambia la tabla (máximo 25)
+
+[database]
+path = "alivia_edge.db"         # última tabla de acceso (sirve sin internet) e historial de comandos
+
+# Cómo se dice cada habitación del backend (roomKey) en voz alta. Sin etiqueta se usa el roomKey tal cual.
+[rooms.labels]
+sala = "la sala"
+cocina = "la cocina"
+dormitorio = "el dormitorio"
+entrada = "la entrada"
+
+# Bluetooth SPP como respaldo (el PC abre el puerto serie del ESP32 emparejado).
+[bluetooth]
+enabled = false                 # <-- true cuando tengas el firmware con Bluetooth probado
+[[bluetooth.links]]
+mac = "AA:BB:CC:00:00:01"       # <-- CAMBIAR: la MAC del ESP32 (la misma de la tabla del backend)
+port = "COM5"                   # Windows: puerto COM saliente. Linux: "/dev/rfcomm0"
+
+[wake]
+model_path = "models/vosk-model-small-es-0.42"
+# Palabras de activación (deben existir en el vocabulario de Vosk). Añade variantes si hace falta.
+phrases = ["alivia", "oye alivia", "ey alivia", "hey alivia", "hola alivia", "ok alivia"]
+min_conf = 0.5                  # sube si hay falsos disparos; baja (o 0 = no validar) si no te oye
+
+[vad]
+model_path = "models/silero_vad.onnx"
+
+[security]
+verify_models = true            # al arrancar, comprueba los SHA-256 de models.lock.json (un modelo alterado impide arrancar)
+allow_unpinned = true           # false: exigir hash registrado para todos (corre scripts/fetch_models.py --lock antes)
+
+[stt]
+model = "large-v3-turbo"
+device = "auto"                 # "cuda" si tienes GPU NVIDIA; "cpu" para forzar CPU
+compute_type = "auto"           # auto: CPU int8; GPU <8 GB int8_float16 (cabe junto al LLM); GPU grande float16
+# revision = "<commit>"         # fija el commit del repositorio en Hugging Face para que el modelo no cambie solo
+# speech_hint = true            # sesga a Whisper hacia los nombres reales de tus dispositivos (recomendado)
+# model = "small"               # alternativa si el PC va justo sin GPU
+
+[llm]
+url = "http://127.0.0.1:11434"
+model = "qwen2.5:3b"            # ollama pull qwen2.5:3b  (licencia Qwen Research: solo uso no comercial, ver docs/modelos.md)
+# num_predict = 300             # tope de tokens de salida
+# seed = 7                      # misma frase, misma interpretación
+
+[tts]
+voice_path = "models/piper/es_MX-claude-high.onnx"   # junto a su .onnx.json
+# backend = "exe"               # si pip no instala piper-tts en tu sistema (Windows):
+# piper_exe = "C:/piper/piper.exe"
+
+[dialog]
+order_window_s = 10
+order_start_timeout_s = 4
+answer_start_timeout_s = 8
+max_clarifications = 2
+exec_timeout_s = 5
+
+[mqtt]
+enabled = false                 # false = SIMULACIÓN (no envía nada; responde éxito). true cuando exista el edge de actuadores
+host = "127.0.0.1"
+port = 1883
+username = ""
+password = ""
