@@ -9,7 +9,7 @@ from enum import Enum
 
 from alivia_edge.voice.infrastructure.audio.speaker import SpeakerController
 from alivia_edge.voice.infrastructure.audio.vad import Recorder
-from alivia_edge.voice.application.dialog import Dialog
+from alivia_edge.voice.application.dialog import P_HELP_SENT, Dialog
 from alivia_edge.voice.domain.ports import MicStalled
 from alivia_edge.shared.domain.text_es import is_meaningful, strip_wake
 from alivia_edge.voice.interfaces.protocol import BYTES_PER_MS
@@ -86,6 +86,16 @@ class DeviceSession:
 
     def _on_json(self, msg: dict) -> None:
         mtype = msg.get("type")
+        alerts = self.svc.alerts
+        if mtype == "help_request":  # botón de ayuda del nodo
+            if alerts is not None:
+                alerts.request_help(self.mac, "presionó el botón de ayuda")
+                asyncio.get_running_loop().create_task(self._confirm_help())
+            return
+        if mtype == "telemetry":  # el nodo informa su batería
+            if alerts is not None and msg.get("batteryPct") is not None:
+                alerts.on_battery(self.mac, msg.get("batteryPct"))
+            return
         if mtype == "playback_done":
             self.speaker.on_playback_done(str(msg.get("utteranceId", "")))
         elif mtype == "audio_level":
@@ -97,6 +107,14 @@ class DeviceSession:
                 self._last_mic_status = status
         else:
             log.debug("[%s] mensaje %s", self.device_id, mtype)
+
+    async def _confirm_help(self) -> None:
+        """Le dice a la persona que ya se avisó. Si estaba en una conversación, la deja: la ayuda es más importante."""
+        self._cancel_conversation()
+        try:
+            await self.say(P_HELP_SENT)
+        except Exception:  # noqa: BLE001  (sin parlante o enlace caído: el aviso ya salió igual)
+            log.warning("[%s] no se pudo confirmar el pedido de ayuda por el parlante", self.device_id)
 
     # ------------------------------------------------------------------ micrófono
     def on_mic_audio(self, chunk: bytes) -> None:
@@ -230,6 +248,7 @@ class DeviceSession:
                 node_id=self.mac,
                 room=room,
                 strip_names=cfg.wake.strip_names,
+                on_help=(lambda words: self.svc.alerts.request_help(self.mac, words)) if self.svc.alerts else None,
             )
             outcome = await dialog.run(initial)
             log.info("[%s] conversación terminada: %s (%.1fs)", self.device_id, outcome.value, time.monotonic() - t0)

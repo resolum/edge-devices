@@ -138,6 +138,10 @@ class BackendCfg:
     retry_min_s: float = 2.0
     retry_max_s: float = 60.0
     idle_retry_s: float = 30.0  # tras 401/404
+    # Avisos al familiar (POST /api/v1/edge/events): pedido de ayuda y batería baja del nodo.
+    low_battery_pct: int = 20  # se avisa una vez al bajar de este nivel...
+    battery_rearm_pct: int = 30  # ...y otra vez solo después de recargar por encima de este
+    events_queue_max: int = 200  # eventos pendientes que se guardan sin red; los más viejos se descartan
 
 
 @dataclass
