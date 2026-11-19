@@ -72,3 +72,12 @@ esté conectado por WiFi no intenta abrir Bluetooth.
 - `utteranceId` máximo 39 caracteres (el edge usa 17).
 - El ESP32 aún **no tiene canal de entrada de comandos hacia los actuadores**: los actuadores van por su propio ESP32 y el
   edge de actuadores (por el broker), tal como definiste. Este nodo solo es micrófono + parlante.
+
+## Mensajes del nodo para los avisos al familiar
+
+El firmware puede enviar, en cualquier momento después del `ready` y por el mismo enlace:
+
+- `{"type":"help_request"}` cuando la persona presiona el botón de ayuda. El edge avisa al familiar y dice por el
+  parlante «Ya estoy avisando a su familia».
+- `{"type":"telemetry","batteryPct":<0-100>}` cada cierto tiempo (por ejemplo cada minuto) si el nodo tiene batería.
+  El edge avisa una sola vez cuando baja del umbral.

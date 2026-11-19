@@ -35,6 +35,20 @@ ESP32 (INMP441 + MAX98357A) ── WebSocket :8765/ws  ┐
    *"Listo. La puerta quedó cerrada, la luz quedó apagada…"*, o *"…pero no pude apagar la luz"* / *"no recibí confirmación…"*.
 7. Mientras suena el parlante, el micrófono se **ignora** (anti-eco) y vuelve a *Escuchando*.
 
+## Pedido de ayuda y batería baja (avisos al familiar)
+
+- **Por voz:** si lo que se dice con la palabra de activación (o después del saludo) es un pedido de ayuda («Alivia,
+  ayuda», «auxilio», «me caí», «no puedo levantarme», «me siento mal», «llama a mi hija»...), no pasa por el LLM ni pide
+  confirmación: el edge avisa al backend en `POST /api/v1/edge/events` (`HELP_REQUESTED`, con lo que dijo la persona) y
+  responde «Ya estoy avisando a su familia». «Ayúdame a cerrar la puerta» sigue siendo una orden.
+- **Con el botón del nodo:** el ESP32 envía `{"type":"help_request"}` por el mismo enlace (WiFi o Bluetooth).
+- **Batería baja:** el ESP32 envía `{"type":"telemetry","batteryPct":<0-100>}`. Se avisa una vez al bajar de
+  `[backend].low_battery_pct` y no otra vez hasta recargar por encima de `battery_rearm_pct`.
+
+El backend notifica con una notificación push a los familiares a cargo del hogar (la ayuda llega como alerta urgente).
+Los eventos esperan en una cola en memoria y se reintentan mientras no haya red; cada uno lleva un `eventId`, así que
+reenviarlo no notifica dos veces.
+
 ## Instalación
 
 Requisitos: Python 3.11+, [Ollama](https://ollama.com), y (cuando tengas actuadores) Mosquitto.

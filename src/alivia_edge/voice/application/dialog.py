@@ -12,8 +12,9 @@ import logging
 import random
 import time
 from enum import Enum
-from typing import Protocol
+from typing import Callable, Protocol
 
+from alivia_edge.alerts.domain import is_help_request
 from alivia_edge.shared.config import DialogCfg
 from alivia_edge.shared.domain.text_es import Answer, classify_answer, is_meaningful, strip_wake
 from alivia_edge.commands.domain.catalog import Catalog
@@ -32,8 +33,9 @@ P_WHAT_THEN = "¿Qué era lo que quería?"
 P_BUS_DOWN = "En este momento no puedo comunicarme con los actuadores."
 P_NO_DEVICES = "No tengo dispositivos disponibles para controlar en este momento."
 P_INTERNAL = "Tuve un problema para interpretar la orden. Inténtelo de nuevo."
+P_HELP_SENT = "Ya estoy avisando a su familia. Quédese tranquilo, la ayuda va en camino."
 
-STATIC_PHRASES = [P_NO_SPEECH, P_NOT_UNDERSTOOD, P_ASK_AGAIN, P_CANCELLED, P_NO_ANSWER, P_REPEAT_YN, P_WHAT_THEN, P_BUS_DOWN, P_NO_DEVICES, P_INTERNAL]
+STATIC_PHRASES = [P_NO_SPEECH, P_NOT_UNDERSTOOD, P_ASK_AGAIN, P_CANCELLED, P_NO_ANSWER, P_REPEAT_YN, P_WHAT_THEN, P_BUS_DOWN, P_NO_DEVICES, P_INTERNAL, P_HELP_SENT]
 
 
 class Outcome(Enum):
@@ -43,6 +45,7 @@ class Outcome(Enum):
     SILENCE = "silence"
     NOT_UNDERSTOOD = "not_understood"
     ERROR = "error"
+    HELP_REQUESTED = "help_requested"  # pidió ayuda: se avisó al familiar
 
 
 class DialogIO(Protocol):
@@ -68,9 +71,11 @@ class Dialog:
         node_id: str,
         room: str,
         strip_names: list[str],
+        on_help: Callable[[str], None] | None = None,
     ) -> None:
         self.cfg, self.catalog, self.llm, self.bus, self.io = cfg, catalog, llm, bus, io
         self.node_id, self.room, self.strip_names = node_id, room, strip_names
+        self.on_help = on_help  # avisa al familiar (cola hacia el backend); None si no hay backend
 
     # --- utilidades -------------------------------------------------------------------------
     async def _listen_text(self) -> str | None:
@@ -112,9 +117,18 @@ class Dialog:
         return Outcome.EXECUTED if all(r.status == "ok" for r in results) else Outcome.PARTIAL
 
     # --- flujo principal -----------------------------------------------------------------------
+    async def _help(self, text: str) -> Outcome:
+        """Un pedido de ayuda no pasa por el LLM ni pide confirmación: se avisa al familiar de inmediato."""
+        if self.on_help is not None:
+            self.on_help(text)
+        await self.io.say(P_HELP_SENT)
+        return Outcome.HELP_REQUESTED
+
     async def run(self, initial_text: str | None) -> Outcome:
         say = self.io.say
-        if not self.catalog.devices:  # sin tabla, o sin actuadores activos: no hay nada que ofrecer
+        if initial_text and self.on_help is not None and is_help_request(initial_text):  # "Alivia, ayuda"
+            return await self._help(initial_text)
+        if not self.catalog.devices and self.on_help is None:  # sin tabla, o sin actuadores activos: nada que ofrecer
             await say(P_NO_DEVICES)
             return Outcome.ERROR
         if initial_text:  # frase completa dicha de corrido ("Alivia, cierra la puerta")
@@ -125,6 +139,11 @@ class Dialog:
             if text is None:
                 await say(P_NO_SPEECH)
                 return Outcome.SILENCE
+            if self.on_help is not None and is_help_request(text):
+                return await self._help(text)
+        if not self.catalog.devices:  # pudo pedir ayuda igual; para mover algo hace falta la tabla
+            await say(P_NO_DEVICES)
+            return Outcome.ERROR
 
         history: list[dict] = []
         rounds = 0

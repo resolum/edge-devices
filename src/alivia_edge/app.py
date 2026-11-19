@@ -18,6 +18,10 @@ from alivia_edge.access.application.sync import AccessSyncService
 from alivia_edge.access.infrastructure.backend_client import HttpBackendGateway
 from alivia_edge.access.infrastructure.models import AccessNodeModel, AccessTableModel
 from alivia_edge.access.infrastructure.repositories import SqliteAccessTableRepository
+from alivia_edge.access.domain.value_objects import MacAddress
+from alivia_edge.alerts.application.service import AlertService, EventReporter
+from alivia_edge.alerts.domain import BatteryWatch
+from alivia_edge.alerts.infrastructure.backend import HttpEventSender
 from alivia_edge.commands.application.catalog_service import CatalogService
 from alivia_edge.commands.application.dispatcher import CommandDispatcher
 from alivia_edge.commands.domain.ports import CommandBus
@@ -53,6 +57,8 @@ class Services:
     executor: ThreadPoolExecutor
     bus: CommandBus | None = None
     sync: AccessSyncService | None = None
+    alerts: AlertService | None = None  # pedido de ayuda y batería baja hacia el backend
+    events: EventReporter | None = None
 
 
 def preflight(cfg: Config) -> list[str]:
@@ -147,6 +153,19 @@ def build_services(cfg: Config) -> Services:
         retry_max_s=cfg.backend.retry_max_s, idle_retry_s=cfg.backend.idle_retry_s,
     )
 
+    # alerts: lo que el nodo avisa al familiar
+    events = EventReporter(
+        HttpEventSender(cfg.backend.base_url, cfg.backend.credential, request_timeout_s=cfg.backend.request_timeout_s),
+        queue_max=cfg.backend.events_queue_max, retry_max_s=cfg.backend.retry_max_s,
+    )
+
+    def device_id_of(mac: str) -> int | None:
+        table = access.table
+        node = table.find_by_mac(MacAddress(mac)) if table else None
+        return node.device_id if node else None
+
+    alerts = AlertService(events, BatteryWatch(cfg.backend.low_battery_pct, cfg.backend.battery_rearm_pct), device_id_of)
+
     # commands
     acl = AccessAntiCorruptionLayer(access)
     catalogs = CatalogService(acl, cfg.room_labels)
@@ -178,6 +197,8 @@ def build_services(cfg: Config) -> Services:
         executor=executor,
         bus=bus,
         sync=sync,
+        alerts=alerts,
+        events=events,
     )
 
 
@@ -195,12 +216,16 @@ async def start_services(svc: Services) -> None:
         await svc.bus.start()
     if svc.sync is not None:
         svc.sync.start()
+    if svc.events is not None:
+        svc.events.start()
     if hasattr(svc.tts, "prewarm"):
         await svc.tts.prewarm(STATIC_PHRASES + list(svc.cfg.dialog.greetings))
     await svc.stt.transcribe(b"\x00\x00" * 16000)  # calienta Whisper con 1 s de silencio
 
 
 async def stop_services(svc: Services) -> None:
+    if svc.events is not None:
+        await svc.events.stop()
     if svc.sync is not None:
         await svc.sync.stop()
     if svc.bus is not None and hasattr(svc.bus, "stop"):

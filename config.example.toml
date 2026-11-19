@@ -18,6 +18,9 @@ base_url = "http://127.0.0.1:8080"   # <-- CAMBIAR
 # POST /api/v1/edges/{id}/credential). Déjala vacía y usa la variable de entorno ALIVIA_EDGE_CREDENTIAL.
 credential = ""
 wait_s = 25                     # espera larga: el backend avisa en cuanto cambia la tabla (máximo 25)
+# Avisos al familiar (POST /api/v1/edge/events): pedido de ayuda y batería baja del nodo.
+low_battery_pct = 20            # se avisa una vez al bajar de este nivel
+battery_rearm_pct = 30          # y otra vez solo después de recargar por encima de este
 
 [database]
 path = "alivia_edge.db"         # última tabla de acceso (sirve sin internet) e historial de comandos
